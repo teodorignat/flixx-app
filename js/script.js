@@ -306,7 +306,7 @@ function highlightActiveLink(e) {
     const links = document.querySelectorAll('.nav-link');
 
     links.forEach( link => {
-        if (link.getAttribute('href') === global.currentPage) {
+        if (link.getAttribute('href') === `https://teodorignat.github.io${global.currentPage}`) {
             link.classList.add('active');      
         }
     })
