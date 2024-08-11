@@ -320,21 +320,21 @@ function addCommasToNumber(number) {
 
 function init() {
     switch (global.currentPage) {
-        case '/':
-        case '/index.html': 
+        case 'flixx-app/':
+        case 'flixx-app/index.html': 
             displaySlider();
             displayPopularMovies();
             break;
-        case '/shows.html':
+        case 'flixx-app/shows.html':
             displayPopularTVShows();
             break;
-        case '/movie-details.html':
+        case 'flixx-app/movie-details.html':
             displayMovieDetails();
             break;
-        case '/tv-details.html':
+        case 'flixx-app/tv-details.html':
             displayTVShowDetails();
             break;
-        case '/search.html':
+        case 'flixx-app/search.html':
             console.log('Search');
             break;
     }
