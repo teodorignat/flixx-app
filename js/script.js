@@ -1,7 +1,18 @@
 // Global State
 
 const global = {
-    currentPage: window.location.pathname
+    currentPage: window.location.pathname,
+    search: {
+      term: '',
+      type: '',
+      page: 1,
+      totalPages: 1,
+      totalResults: 0
+    },
+    api: {
+      apiKey: 'aa62594def961af2ab7d420254e20f57',
+      apiUrl: 'https://api.themoviedb.org/3/'
+    }
 }
 
 // Display 20 most popular movies
@@ -227,25 +238,149 @@ function displayBackgroundImage(type, backgroundPath) {
     }
 }
 
+
+// Search Movies/Shows
+
+async function search() {
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  
+  global.search.type = urlParams.get('type');
+  global.search.term = urlParams.get('search-term');
+  
+  if (global.search.term !== '' && global.search.term !== null) {
+    const {results, total_pages, page, total_results} = await searchAPIData();
+    
+    global.search.page = page;
+    global.search.totalPages = total_pages;
+    global.search.totalResults = total_results;
+    
+    if (!results.length) {
+      showAlert('No Results Found!', 'alert-error')
+      return;
+    }
+    
+    dispalySearchResults(results);
+    
+    document.querySelector('#search-term').value = '';
+    
+  } else {
+    showAlert('Please, enter a search term', 'alert-error');
+  }
+}
+
+// Display Search Results
+
+function dispalySearchResults(results) {
+  // Clear previous results
+
+  document.querySelector('#search-results').innerHTML = '';
+  document.querySelector('#search-results-heading').innerHTML = '';
+  document.querySelector('#pagination').innerHTML = '';
+
+  results.forEach((result) => {
+      const div = document.createElement('div');
+      div.classList.add('card');
+      div.innerHTML = `<div id="search-results" class="grid">
+          <div class="card">
+            <a href="https://teodorignat.github.io/flixx-app/${global.search.type}-details.html?id=${result.id}">
+            ${
+              result.poster_path
+              ? `<img
+                  src="https://image.tmdb.org/t/p/w500${result.poster_path}"
+                  class="card-img-top"
+                  alt="${global.search.type === 'movie' ? result.title : result.name}"
+              />` 
+              : `<img
+                  src="images/no-image.jpg"
+                  class="card-img-top"
+                  alt="${global.search.type === 'movie' ? result.title : result.name}"
+              />`
+          }
+            </a>
+            <div class="card-body">
+              <h5 class="card-title">${global.search.type === 'movie' ? result.title : result.name}</h5>
+              <p class="card-text">
+                <small class="text-muted">Release: ${global.search.type === 'movie' ? result.release_date : result.first_air_date}</small>
+              </p>
+            </div>
+          </div>`;
+      
+      document.querySelector('#search-results-heading').innerHTML = `
+          <h2>${results.length} of ${global.search.totalResults} Results for ${global.search.term}<h2/>
+      `
+
+      document.querySelector('#search-results').appendChild(div);
+  })
+
+  displayPagination();
+}
+
+// Create And Display Pagination For Search
+
+function displayPagination() {
+  const div = document.createElement('div');
+  div.classList.add('pagination')
+  div.innerHTML = `
+    <button class="btn btn-primary" id="prev">Prev</button>
+    <button class="btn btn-primary" id="next">Next</button>
+    <div class="page-counter">Page ${global.search.page} of ${global.search.totalPages}</div>
+  `
+
+  document.querySelector('#pagination').appendChild(div);
+
+  // Disable Prev BTN if we are on first page
+
+  if (global.search.page === 1) {
+    document.querySelector('#prev').disabled = true;
+  }
+
+  // Disable Next BTN if we are on the last page
+
+  if (global.search.page === global.search.totalPages) {
+    document.querySelector('#next').disabled = true;
+  }
+
+  // Next Page
+
+  document.querySelector('#next').addEventListener('click', async () => {
+    global.search.page++;
+
+    const {results, total_pages} = await searchAPIData();
+
+    dispalySearchResults(results);
+  })
+
+  // Prev Page
+
+  document.querySelector('#prev').addEventListener('click', async () => {
+    global.search.page--;
+
+    const {results, total_pages} = await searchAPIData();
+
+    dispalySearchResults(results);
+  })
+}
+
 // Display Slider Movies
 
 async function displaySlider() {
   const { results } = await fetchAPIData('movie/now_playing')
-
+  
   results.forEach((movie) => {
     const div = document.createElement('div');
     div.classList.add('swiper-slide')
-
-
+    
+    
     div.innerHTML = `<a href="https://teodorignat.github.io/flixx-app/movie-details.html?id=${movie.id}">
-              <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title} loading="lazy" />
-            </a>
-            <h4 class="swiper-rating">
-              <i class="fas fa-star text-secondary"></i> ${movie.vote_average.toFixed(1)} / 10
-            </h4>`
-
+    <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title} loading="lazy" />
+    </a>
+    <h4 class="swiper-rating">
+    <i class="fas fa-star text-secondary"></i> ${movie.vote_average.toFixed(1)} / 10
+    </h4>`
+    
     document.querySelector('.swiper-wrapper').appendChild(div);
-
+    
     initSwiper();
   })
 }
@@ -269,6 +404,9 @@ function initSwiper() {
       },
       1200: {
         slidesPerView: 4
+      },
+      2200: {
+        slidesPerView: 5
       }
     }
   })
@@ -277,12 +415,29 @@ function initSwiper() {
 // Fetch data from TMDB API
 
 async function fetchAPIData(endpoint) {
-    const API_KEY = 'aa62594def961af2ab7d420254e20f57';
-    const API_URL = 'https://api.themoviedb.org/3/';
+    const API_KEY = global.api.apiKey;
+    const API_URL = global.api.apiUrl;
 
     showSpinner();
 
     const response = await fetch(`${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`);
+
+    const data = await response.json();
+
+    hideSpinner();
+
+    return data;
+}
+
+// Make Request To Search
+
+async function searchAPIData() {
+    const API_KEY = global.api.apiKey;
+    const API_URL = global.api.apiUrl;
+
+    showSpinner();
+
+    const response = await fetch(`${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}&page=${global.search.page}`);
 
     const data = await response.json();
 
@@ -306,10 +461,21 @@ function highlightActiveLink(e) {
     const links = document.querySelectorAll('.nav-link');
 
     links.forEach( link => {
-        if (link.getAttribute('href') === `https://teodorignat.github.io${global.currentPage}`) {
+        if (link.getAttribute('href') === global.currentPage) {
             link.classList.add('active');      
         }
     })
+}
+
+// Show Alert
+
+function showAlert(message, className) {
+  const alertEl = document.createElement('div');
+  alertEl.classList.add('alert', className);
+  alertEl.appendChild(document.createTextNode(message));
+  document.querySelector('#alert').appendChild(alertEl);
+
+  setTimeout(() => alertEl.remove(), 3000);
 }
 
 function addCommasToNumber(number) {
@@ -335,11 +501,12 @@ function init() {
             displayTVShowDetails();
             break;
         case '/flixx-app/search.html':
-            console.log('Search');
+            search();
             break;
     }
 
     highlightActiveLink();
+    console.log(global.currentPage)
 }
 
 document.addEventListener('DOMContentLoaded', init);
