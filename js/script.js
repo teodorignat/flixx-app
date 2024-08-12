@@ -261,7 +261,6 @@ async function search() {
     }
     
     dispalySearchResults(results);
-    
     document.querySelector('#search-term').value = '';
     
   } else {
